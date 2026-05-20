@@ -9,7 +9,7 @@ const evaluationSchema = new mongoose.Schema({
   },
   participant: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Participant',
     required: [true, 'Participant is required']
   },
   evaluator: {

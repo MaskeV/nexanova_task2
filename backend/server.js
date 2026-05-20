@@ -17,12 +17,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use('/api/auth', authRoutes);
-app.use('/api/batches', batchRoutes);
-app.use('/api/evaluations', evaluationRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/technologies', technologyRoutes);
-app.use('/api/participants', participantRoutes);
+app.use('/auth', authRoutes);
+app.use('/batches', batchRoutes);
+app.use('/evaluations', evaluationRoutes);
+app.use('/reports', reportRoutes);
+app.use('/technologies', technologyRoutes);
+app.use('/participants', participantRoutes);
 
 
 app.get('/api/health', (req, res) => {

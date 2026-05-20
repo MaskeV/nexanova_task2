@@ -1,52 +1,56 @@
+// frontend/src/services/api.js - REPLACE ENTIRE FILE
 import axios from 'axios';
 
-const API_URL = '/api';
+// ✅ FIX: No trailing slash on base URL
+// With trailing slash: 'http://localhost:5000/' + '/subject' = 'http://localhost:5000//subject' ← BREAKS
+// Without trailing slash: 'http://localhost:5000' + '/subject' = 'http://localhost:5000/subject' ← CORRECT
+const API_BASE_URL = 'http://localhost:5000';
 
-// Create axios instance
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 15000,
 });
 
-// Request interceptor to add token
+// Request interceptor - attach auth token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Debug: log every request URL
+    console.log(`🌐 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor to handle errors
+// Response interceptor
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log(`✅ API Response: ${response.config.url} →`, response.status);
+    return response;
+  },
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
+    const url = error.config?.url || 'unknown';
+    const status = error.response?.status;
+    const message = error.response?.data?.message || error.message;
+
+    console.error(`❌ API Error: ${url} → ${status} - ${message}`);
+
+    if (status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+        window.location.href = '/login';
+      }
     }
+
     return Promise.reject(error);
   }
 );
-
-// Auth API calls
-export const authAPI = {
-  login: (credentials) => api.post('/auth/login', credentials),
-  register: (userData) => api.post('/auth/register', userData),
-  getMe: () => api.get('/auth/me'),
-  changePassword: (passwords) => api.put('/auth/change-password', passwords),
-  getAllUsers: () => api.get('/auth/users'),
-  updateUser: (id, userData) => api.put(`/auth/users/${id}`, userData),
-  deleteUser: (id) => api.delete(`/auth/users/${id}`),
-};
 
 export default api;

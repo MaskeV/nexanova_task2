@@ -47,7 +47,7 @@ const assignEvaluation = async (req, res) => {
     
     // Verify participant exists and is in the batch
     const participant = await User.findById(participantId);
-    if (!participant || participant.role !== 'student') {
+    if (!participant) {
       return res.status(404).json({
         success: false,
         message: 'Participant not found or is not a student'

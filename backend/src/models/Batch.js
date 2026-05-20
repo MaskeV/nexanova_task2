@@ -48,7 +48,7 @@ const batchSchema = new mongoose.Schema({
   },
   participants: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User' // References students
+    ref: 'Participant' // References students
   }],
   status: {
     type: String,
