@@ -1,297 +1,199 @@
-import User from '../models/User.js';
-import { generateToken } from '../utils/jwt.js';
+// src/controllers/authController.js
+const User = require('../models/User');
+const jwt = require('jsonwebtoken');
 
-// @desc    Register a new user (Public for evaluators, Admin only for creating admins)
-// @route   POST /api/auth/register
-// @access  Public (for evaluators) / Private/Admin (for admins)
-export const register = async (req, res) => {
+// Generate JWT Token
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE || '7d'
+  });
+};
+
+// @desc    Register a new user
+// @route   POST /auth/register
+const register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { username, email, password, role } = req.body;
 
-    // Validate required fields
-    if (!name || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide name, email, and password',
-      });
+    const errors = {};
+
+    // Validate input
+    if (!username || username.trim().length < 3) {
+      errors.username = 'Username is required and must be at least 3 characters';
+    }
+    if (!email) {
+      errors.email = 'Email is required';
+    } else if (!/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email)) {
+      errors.email = 'Please enter a valid email';
+    }
+    if (!password || password.length < 6) {
+      errors.password = 'Password is required and must be at least 6 characters';
     }
 
-    // Check if trying to create admin without being admin
-    if (role === 'admin' && (!req.user || req.user.role !== 'admin')) {
-      return res.status(403).json({
-        success: false,
-        message: 'Only admins can create admin accounts',
-      });
+    // UPDATED: Validate role
+    if (role && !['trainer', 'student'].includes(role)) {
+      errors.role = 'Role must be either trainer or student';
     }
 
-    // Check if user already exists
-    const userExists = await User.findOne({ email });
+    if (Object.keys(errors).length > 0) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors });
+    }
 
+    // Check if user exists
+    const userExists = await User.findOne({ $or: [{ email }, { username }] });
     if (userExists) {
-      return res.status(400).json({
-        success: false,
-        message: 'User already exists with this email',
-      });
+      if (userExists.username === username) errors.username = 'Username already taken';
+      if (userExists.email === email) errors.email = 'Email already registered';
+      return res.status(400).json({ success: false, message: 'User already exists', errors });
     }
 
-    // Create user (default role is evaluator)
+    // UPDATED: Create user with specified role (trainer or student)
+    // Only admins can create other admins (handled separately)
     const user = await User.create({
-      name,
+      username,
       email,
       password,
-      role: role || 'evaluator',
+      role: role || 'student' // Default to student if not specified
     });
 
-    if (user) {
-      // Generate token for evaluators (auto-login after signup)
-      const token = role !== 'admin' ? generateToken(user._id, user.role) : null;
+    // Generate token
+    const token = generateToken(user._id);
 
-      res.status(201).json({
-        success: true,
-        message: 'User created successfully',
-        data: {
-          user: {
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-          },
-          ...(token && { token }), // Include token for evaluator signup
-        },
-      });
-    }
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      data: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      },
+      token
+    });
   } catch (error) {
-    console.error('Register error:', error);
+    console.error('Registration error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error creating user',
-      error: error.message,
+      message: error.message
     });
   }
 };
 
 // @desc    Login user
-// @route   POST /api/auth/login
-// @access  Public
-export const login = async (req, res) => {
+// @route   POST /auth/login
+const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const errors = {};
 
-    // Validate input
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide email and password',
-      });
+    if (!email) errors.email = 'Email is required';
+    if (!password) errors.password = 'Password is required';
+    if (Object.keys(errors).length > 0) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors });
     }
 
-    // Check for user (include password for comparison)
+    // Find user with password
     const user = await User.findOne({ email }).select('+password');
-
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials',
-      });
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // Check if user is active
     if (!user.isActive) {
-      return res.status(401).json({
-        success: false,
-        message: 'Your account has been deactivated',
-      });
+      return res.status(401).json({ success: false, message: 'Account is deactivated' });
     }
 
-    // Check password
-    const isPasswordMatch = await user.comparePassword(password);
-
-    if (!isPasswordMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials',
-      });
+    const isPasswordCorrect = await user.comparePassword(password);
+    if (!isPasswordCorrect) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // Generate token
-    const token = generateToken(user._id, user.role);
+    const token = generateToken(user._id);
 
     res.status(200).json({
       success: true,
       message: 'Login successful',
       data: {
-        user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-        token,
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role
       },
+      token
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error logging in',
-      error: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Get current logged-in user
-// @route   GET /api/auth/me
-// @access  Private
-export const getMe = async (req, res) => {
+// @desc    Get current logged in user
+// @route   GET /auth/me
+const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
 
     res.status(200).json({
       success: true,
-      data: user,
+      data: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt
+      }
     });
   } catch (error) {
-    console.error('Get me error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching user data',
-      error: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Get all users
-// @route   GET /api/auth/users
-// @access  Private/Admin
-export const getAllUsers = async (req, res) => {
-  try {
-    const users = await User.find({}).select('-password');
-
-    res.status(200).json({
-      success: true,
-      count: users.length,
-      data: users,
-    });
-  } catch (error) {
-    console.error('Get all users error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching users',
-      error: error.message,
-    });
-  }
-};
-
-// @desc    Update user
-// @route   PUT /api/auth/users/:id
-// @access  Private/Admin
-export const updateUser = async (req, res) => {
-  try {
-    const { name, email, role, isActive } = req.body;
-
-    const user = await User.findById(req.params.id);
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
-    }
-
-    // Update fields
-    if (name) user.name = name;
-    if (email) user.email = email;
-    if (role) user.role = role;
-    if (typeof isActive !== 'undefined') user.isActive = isActive;
-
-    const updatedUser = await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'User updated successfully',
-      data: updatedUser,
-    });
-  } catch (error) {
-    console.error('Update user error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error updating user',
-      error: error.message,
-    });
-  }
-};
-
-// @desc    Delete user
-// @route   DELETE /api/auth/users/:id
-// @access  Private/Admin
-export const deleteUser = async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
-    }
-
-    await user.deleteOne();
-
-    res.status(200).json({
-      success: true,
-      message: 'User deleted successfully',
-    });
-  } catch (error) {
-    console.error('Delete user error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error deleting user',
-      error: error.message,
-    });
-  }
-};
-
-// @desc    Change password
-// @route   PUT /api/auth/change-password
-// @access  Private
-export const changePassword = async (req, res) => {
+// @desc    Update user password
+// @route   PUT /auth/password
+const updatePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide current and new password',
+        message: 'Please provide current and new password'
       });
     }
 
-    // Get user with password
-    const user = await User.findById(req.user._id).select('+password');
+    const user = await User.findById(req.user.id).select('+password');
 
-    // Check current password
-    const isPasswordMatch = await user.comparePassword(currentPassword);
-
-    if (!isPasswordMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Current password is incorrect',
-      });
+    const isPasswordCorrect = await user.comparePassword(currentPassword);
+    if (!isPasswordCorrect) {
+      return res.status(401).json({ success: false, message: 'Current password is incorrect' });
     }
 
-    // Update password
     user.password = newPassword;
     await user.save();
 
+    const token = generateToken(user._id);
+
     res.status(200).json({
       success: true,
-      message: 'Password changed successfully',
+      message: 'Password updated successfully',
+      token
     });
   } catch (error) {
-    console.error('Change password error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error changing password',
-      error: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
+};
+
+// @desc    Logout user (client-side token removal)
+// @route   POST /auth/logout
+const logout = async (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Logout successful'
+  });
+};
+
+module.exports = {
+  register,
+  login,
+  getMe,
+  updatePassword,
+  logout
 };
