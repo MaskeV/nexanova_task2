@@ -7,6 +7,7 @@ const batchRoutes = require('./src/routes/batchRoutes.js');
 const evaluationRoutes = require('./src/routes/evaluationRoutes.js');
 const reportRoutes = require('./src/routes/reportRoutes.js');
 const technologyRoutes = require('./src/routes/technologyRoutes.js');
+const participantRoutes = require('./src/routes/participantRoutes.js');
 
 dotenv.config();
 const app = express();
@@ -21,6 +22,8 @@ app.use('/api/batches', batchRoutes);
 app.use('/api/evaluations', evaluationRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/technologies', technologyRoutes);
+app.use('/api/participants', participantRoutes);
+
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({ success: true, message: 'Server is running' });
@@ -39,3 +42,4 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
+

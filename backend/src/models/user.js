@@ -1,16 +1,13 @@
-// src/models/User.js
 const mongoose = require('mongoose');
-
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
-  username: {
+  name: {
     type: String,
-    required: [true, 'Username is required'],
-    unique: true,
+    required: [true, 'Name is required'],
     trim: true,
-    minlength: [3, 'Username must be at least 3 characters'],
-    maxlength: [30, 'Username cannot exceed 30 characters']
+    minlength: [3, 'Name must be at least 3 characters'],
+    maxlength: [100, 'Name cannot exceed 100 characters']
   },
   email: {
     type: String,
@@ -24,31 +21,25 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Password is required'],
     minlength: [6, 'Password must be at least 6 characters'],
-    select: false // Don't return password by default
+    select: false
   },
   role: {
     type: String,
-    enum: ['admin', 'evaluator'], // UPDATED: Added trainer and student
-    default: 'evaluator' // UPDATED: Default to student
+    enum: ['admin', 'evaluator'], // FR-2.1: only Admin and Evaluator are system users
+    default: 'evaluator'
   },
   isActive: {
     type: Boolean,
     default: true
   }
-}, {
-  timestamps: true
-});
-
-// Hash password before saving
+}, { timestamps: true });
 
 userSchema.pre('save', async function () {
   if (!this.isModified('password')) return;
-
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-// Method to compare passwords
 userSchema.methods.comparePassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };

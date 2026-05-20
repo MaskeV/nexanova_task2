@@ -4,21 +4,21 @@ const {
   register,
   login,
   getMe,
+  updatePassword,
   getAllUsers,
   updateUser,
-  deleteUser,
-  changePassword,
+  deleteUser
 } = require('../controllers/authController');
 const {
   forgotPassword,
   verifyResetCode,
-  resetPassword,
+  resetPassword
 } = require('../controllers/passwordResetController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
 
 // Public routes
 router.post('/login', login);
-router.post('/register', register);
+router.post('/register', protect, authorize('admin'), register);
 
 // Password reset (public)
 router.post('/forgot-password', forgotPassword);
@@ -27,7 +27,7 @@ router.post('/reset-password', resetPassword);
 
 // Authenticated routes
 router.get('/me', protect, getMe);
-router.put('/change-password', protect, changePassword);
+router.put('/password', protect, updatePassword);
 
 // Admin-only user management (FR-2.1)
 router.get('/users', protect, authorize('admin'), getAllUsers);
