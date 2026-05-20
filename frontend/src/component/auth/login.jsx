@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../../context/authContext';
 import { toast } from 'react-toastify';
-import '../styles/Auth.css';
+import '../../styles/Auth.css';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -22,6 +22,13 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validation
+    if (!formData.email || !formData.password) {
+      toast.error('Please enter email and password');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -31,10 +38,11 @@ const Login = () => {
         toast.success('Login successful!');
         navigate('/dashboard');
       } else {
-        toast.error(result.message);
+        toast.error(result.message || 'Login failed');
       }
     } catch (error) {
       toast.error('An error occurred during login');
+      console.error('Login error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -87,8 +95,15 @@ const Login = () => {
         </form>
 
         <div className="auth-footer">
-          <p className="text-muted">
-            Default Admin: admin@example.com / admin123
+          <p>
+            Don't have an account?{' '}
+            <Link to="/signup" className="auth-link">
+              Sign up here
+            </Link>
+          </p>
+          <p className="text-muted" style={{ marginTop: '12px', fontSize: '12px' }}>
+            Demo Admin: admin@example.com / admin123<br/>
+            Demo Evaluator: eval@example.com / eval123
           </p>
         </div>
       </div>

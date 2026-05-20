@@ -21,17 +21,40 @@ const Signup = () => {
     });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      toast.error('Please enter your name');
+      return false;
+    }
 
-    // Validation
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
+    if (!formData.email.trim()) {
+      toast.error('Please enter your email');
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast.error('Please enter a valid email');
+      return false;
     }
 
     if (formData.password.length < 6) {
       toast.error('Password must be at least 6 characters');
+      return false;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      toast.error('Passwords do not match');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
       return;
     }
 
@@ -39,8 +62,8 @@ const Signup = () => {
 
     try {
       const response = await authAPI.register({
-        name: formData.name,
-        email: formData.email,
+        name: formData.name.trim(),
+        email: formData.email.trim(),
         password: formData.password,
         role: 'evaluator', // Always evaluator for public signup
       });
@@ -59,7 +82,9 @@ const Signup = () => {
         }
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to create account');
+      const errorMessage = error.response?.data?.message || 'Failed to create account';
+      toast.error(errorMessage);
+      console.error('Signup error:', error);
     } finally {
       setIsLoading(false);
     }
