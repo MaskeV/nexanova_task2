@@ -4,34 +4,43 @@ import { authAPI } from '../services/api';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser]       = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [token, setToken]     = useState(null);
 
-  // Load user from localStorage on mount
+  // Restore session on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
     const storedToken = localStorage.getItem('token');
-    
-    if (storedUser && storedToken) {
-      setUser(JSON.parse(storedUser));
-      setToken(storedToken);
+    const storedUser  = localStorage.getItem('user');
+    if (storedToken && storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+        setToken(storedToken);
+      } catch {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
     }
     setLoading(false);
   }, []);
 
-  // Login function
   const login = async (email, password) => {
     try {
       const response = await authAPI.login({ email, password });
-      const { user, token } = response.data.data;
-      
-      // Save to state and localStorage
-      setUser(user);
-      setToken(token);
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('token', token);
-      
+      const body = response.data;
+      // Backend shape: { success, message, data: { id, name, email, role }, token }
+      const userData  = body.data;    // { id, name, email, role }
+      const userToken = body.token;   // token is TOP-LEVEL, not inside data
+
+      if (!userData || !userToken) {
+        return { success: false, message: 'Invalid response from server' };
+      }
+
+      localStorage.setItem('token', userToken);
+      localStorage.setItem('user', JSON.stringify(userData));
+      setToken(userToken);
+      setUser(userData);   // this triggers PublicRoute to redirect automatically
+
       return { success: true };
     } catch (error) {
       return {
@@ -41,44 +50,27 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Logout function
   const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('user');
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
   };
 
-  // Check if user is admin
-  const isAdmin = () => {
-    return user?.role === 'admin';
-  };
+  const isAdmin     = () => user?.role === 'admin';
+  const isEvaluator = () => user?.role === 'evaluator';
 
-  // Check if user is evaluator
-  const isEvaluator = () => {
-    return user?.role === 'evaluator';
-  };
-
-  const value = {
-    user,
-    token,
-    loading,
-    login,
-    logout,
-    isAdmin,
-    isEvaluator,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, token, loading, login, logout, isAdmin, isEvaluator }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-// Custom hook to use auth context
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
 };
 
 export default AuthContext;

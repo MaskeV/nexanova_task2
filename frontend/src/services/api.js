@@ -1,56 +1,47 @@
-// frontend/src/services/api.js - REPLACE ENTIRE FILE
 import axios from 'axios';
 
-// ✅ FIX: No trailing slash on base URL
-// With trailing slash: 'http://localhost:5000/' + '/subject' = 'http://localhost:5000//subject' ← BREAKS
-// Without trailing slash: 'http://localhost:5000' + '/subject' = 'http://localhost:5000/subject' ← CORRECT
 const API_BASE_URL = 'http://localhost:5000';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
 });
 
-// Request interceptor - attach auth token
+// Attach token to every request
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    // Debug: log every request URL
-    console.log(`🌐 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+    if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Response interceptor
+// Handle 401 globally
 api.interceptors.response.use(
-  (response) => {
-    console.log(`✅ API Response: ${response.config.url} →`, response.status);
-    return response;
-  },
+  (response) => response,
   (error) => {
-    const url = error.config?.url || 'unknown';
-    const status = error.response?.status;
-    const message = error.response?.data?.message || error.message;
-
-    console.error(`❌ API Error: ${url} → ${status} - ${message}`);
-
-    if (status === 401) {
+    if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+      if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
     }
-
     return Promise.reject(error);
   }
 );
+
+// ── Named authAPI object (used by components) ─────────────
+export const authAPI = {
+  login:          (data)         => api.post('/auth/login', data),
+  register:       (data)         => api.post('/auth/register', data),
+  getMe:          ()             => api.get('/auth/me'),
+  changePassword: (data)         => api.put('/auth/password', data),
+  getAllUsers:     (params = {}) => api.get('/auth/users', { params }),
+  updateUser:     (id, data)     => api.put(`/auth/users/${id}`, data),
+  deleteUser:     (id)           => api.delete(`/auth/users/${id}`),
+};
 
 export default api;
