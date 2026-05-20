@@ -16,7 +16,7 @@ const { protect, authorize } = require('../middlewares/authMiddleware');
 // Logging middleware
 router.use((req, res, next) => {
   console.log(`📝 Evaluation Route: ${req.method} ${req.path}`);
-  next();
+
 });
 
 // All routes require authentication

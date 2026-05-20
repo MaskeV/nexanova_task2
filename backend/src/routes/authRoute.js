@@ -1,50 +1,37 @@
-// backend/src/routes/authRoutes.js
 const express = require('express');
 const router = express.Router();
 const {
   register,
   login,
   getMe,
-  updatePassword,
-  logout
+  getAllUsers,
+  updateUser,
+  deleteUser,
+  changePassword,
 } = require('../controllers/authController');
 const {
   forgotPassword,
   verifyResetCode,
-  resetPassword
+  resetPassword,
 } = require('../controllers/passwordResetController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
 
 // Public routes
-router.post('/register', register);
 router.post('/login', login);
+router.post('/register', register);
 
-// Password reset routes (public)
+// Password reset (public)
 router.post('/forgot-password', forgotPassword);
 router.post('/verify-reset-code', verifyResetCode);
 router.post('/reset-password', resetPassword);
 
-// Protected routes
+// Authenticated routes
 router.get('/me', protect, getMe);
-router.put('/password', protect, updatePassword);
-router.post('/logout', protect, logout);
+router.put('/change-password', protect, changePassword);
 
-// NEW: Get all users (admin only) - for enrollment
-router.get('/users', protect, authorize('admin'), async (req, res) => {
-  try {
-    const User = require('../models/User');
-    const users = await User.find({ role: 'student' }).select('-password');
-    res.status(200).json({
-      success: true,
-      count: users.length,
-      data: users
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
+// Admin-only user management (FR-2.1)
+router.get('/users', protect, authorize('admin'), getAllUsers);
+router.put('/users/:id', protect, authorize('admin'), updateUser);
+router.delete('/users/:id', protect, authorize('admin'), deleteUser);
 
 module.exports = router;

@@ -15,7 +15,7 @@ const { protect, authorize } = require('../middlewares/authMiddleware');
 // Logging middleware
 router.use((req, res, next) => {
   console.log(`📦 Batch Route: ${req.method} ${req.path}`);
-  next();
+
 });
 
 // Public routes

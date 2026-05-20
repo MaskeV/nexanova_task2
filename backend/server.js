@@ -1,55 +1,41 @@
-import express from 'express';
-import dotenv from 'dotenv';
-import cors from 'cors';
-import connectDB from './src/config/database.js';
-import authRoutes from './src/routes/authRoute.js';
+const express = require('express');
+const dotenv = require('dotenv');
+const cors = require('cors');
+const connectDB = require('./src/config/database.js');
+const authRoutes = require('./src/routes/authRoute.js');
+const batchRoutes = require('./src/routes/batchRoutes.js');
+const evaluationRoutes = require('./src/routes/evaluationRoutes.js');
+const reportRoutes = require('./src/routes/reportRoutes.js');
+const technologyRoutes = require('./src/routes/technologyRoutes.js');
 
-// Load environment variables
 dotenv.config();
-
-// Initialize express app
 const app = express();
-
-// Connect to database
 connectDB();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/batches', batchRoutes);
+app.use('/api/evaluations', evaluationRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/technologies', technologyRoutes);
 
-// Health check route
 app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Server is running',
-    timestamp: new Date().toISOString(),
-  });
+  res.status(200).json({ success: true, message: 'Server is running' });
 });
 
-// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({
-    success: false,
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined,
-  });
+  res.status(500).json({ success: false, message: 'Something went wrong!' });
 });
 
-// 404 handler
 app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found',
-  });
+  res.status(404).json({ success: false, message: 'Route not found' });
 });
 
-// Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
