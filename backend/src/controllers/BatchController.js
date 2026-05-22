@@ -1,3 +1,4 @@
+// backend/src/controllers/BatchController.js - FIXED
 const Batch = require('../models/Batch');
 const Participant = require('../models/Participant');
 const Technology = require('../models/Technology');
@@ -181,10 +182,15 @@ const addParticipantsToBatch = async (req, res) => {
     const batch = await Batch.findOne({ batchId: req.params.id });
     if (!batch) return res.status(404).json({ success: false, message: 'Batch not found' });
 
-    // Verify all IDs belong to users with role 'participant' (FR-3.1)
-    const participants = await Participant.find({ _id: { $in: participantIds }, role: 'participant' });
+    // ✅ FIX: Removed invalid role check - Participant model doesn't have role field
+    // Just verify the IDs exist in the database
+    const participants = await Participant.find({ _id: { $in: participantIds } });
+    
     if (participants.length !== participantIds.length) {
-      return res.status(400).json({ success: false, message: 'Some IDs are invalid or not participants' });
+      return res.status(400).json({ 
+        success: false, 
+        message: `${participantIds.length - participants.length} participant ID(s) not found` 
+      });
     }
 
     participantIds.forEach((id) => {

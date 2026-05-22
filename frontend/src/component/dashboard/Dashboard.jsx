@@ -39,13 +39,6 @@ const Dashboard = () => {
       live: true,
     },
     {
-      icon: '🔒',
-      title: 'Change Password',
-      description: 'Update your account password',
-      route: '/change-password',
-      live: true,
-    },
-    {
       icon: '📊',
       title: 'Progress Tracking',
       description: 'Monitor your evaluation progress',
@@ -87,7 +80,6 @@ const Dashboard = () => {
       <div className="dashboard-content">
         <div className="welcome-section">
           <h1>Welcome, {user?.name}!</h1>
-          <p className="text-muted">Here's your evaluation overview.</p>
         </div>
 
         {/* Quick Stats */}

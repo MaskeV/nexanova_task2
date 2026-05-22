@@ -58,13 +58,7 @@ const AdminDashboard = () => {
       route: '/reports',
       color: '#10b981',
     },
-    {
-      icon: '🔒',
-      title: 'Change Password',
-      description: 'Update your admin account password',
-      route: '/change-password',
-      color: '#64748b',
-    },
+  
   ];
 
   const statItems = [
@@ -93,7 +87,6 @@ const AdminDashboard = () => {
         {/* ── Welcome ── */}
         <div className="welcome-section">
           <h1>Welcome back, {user?.name}!</h1>
-          <p className="text-muted">Here's an overview of your evaluation system.</p>
         </div>
 
        

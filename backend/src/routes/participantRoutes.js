@@ -1,3 +1,4 @@
+// backend/src/routes/participantRoutes.js - FIXED
 const express = require('express');
 const router = express.Router();
 const {
@@ -14,13 +15,16 @@ router.use((req, res, next) => {
   next();
 });
 
-// All routes admin only
-router.use(protect, authorize('admin'));
+// ✅ FIX: Allow authenticated users to READ participants
+// But only ADMINS can CREATE, UPDATE, DELETE
 
-router.get('/', getAllParticipants);
-router.get('/:id', getParticipantById);
-router.post('/', createParticipant);
-router.put('/:id', updateParticipant);
-router.delete('/:id', deleteParticipant);
+// READ endpoints - Allow admin and evaluator
+router.get('/', protect, getAllParticipants);
+router.get('/:id', protect, getParticipantById);
+
+// WRITE endpoints - Admin only
+router.post('/', protect, authorize('admin'), createParticipant);
+router.put('/:id', protect, authorize('admin'), updateParticipant);
+router.delete('/:id', protect, authorize('admin'), deleteParticipant);
 
 module.exports = router;

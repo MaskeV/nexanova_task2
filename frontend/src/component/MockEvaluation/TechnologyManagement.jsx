@@ -1,4 +1,4 @@
-// frontend/src/component/MockEvaluation/TechnologyManagement.jsx
+// frontend/src/component/MockEvaluation/TechnologyManagement.jsx - FIXED
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import {
@@ -25,17 +25,36 @@ const TechnologyManagement = () => {
     name: '', description: '', category: 'Other', rounds: 1, isActive: true,
   });
   const [criteriaForm, setCriteriaForm] = useState({ evaluationCriteria: [] });
-  const [filters, setFilters] = useState({ category: '', isActive: '' });
+  
+  // ✅ FIX: Initialize filters as null instead of empty strings
+  const [filters, setFilters] = useState({ category: null, isActive: null });
 
-  useEffect(() => { fetchTechnologies(); }, [filters]);
+  useEffect(() => { 
+    console.log('📊 Technology filters changed:', filters);
+    fetchTechnologies(); 
+  }, [filters]);
 
   const fetchTechnologies = async () => {
     try {
       setLoading(true);
-      const response = await getAllTechnologies(filters);
+      console.log('📥 Fetching technologies with filters:', filters);
+      
+      // ✅ FIX: Build clean filter object with only non-null values
+      const filterParams = {};
+      if (filters.category && filters.category !== '') {
+        filterParams.category = filters.category;
+      }
+      if (filters.isActive !== null && filters.isActive !== undefined) {
+        filterParams.isActive = filters.isActive;
+      }
+      
+      const response = await getAllTechnologies(filterParams);
       setTechnologies(response.data || []);
+      console.log('✅ Technologies loaded:', response.data?.length);
     } catch (error) {
+      console.error('❌ Error fetching technologies:', error);
       toast.error(error.response?.data?.message || 'Failed to fetch technologies');
+      setTechnologies([]);
     } finally {
       setLoading(false);
     }
@@ -51,7 +70,21 @@ const TechnologyManagement = () => {
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
+    
+    // ✅ FIX: Properly convert filter values
+    if (name === 'isActive') {
+      // Convert select value to boolean or null
+      if (value === '') {
+        setFilters(prev => ({ ...prev, [name]: null }));
+      } else if (value === 'true') {
+        setFilters(prev => ({ ...prev, [name]: true }));
+      } else if (value === 'false') {
+        setFilters(prev => ({ ...prev, [name]: false }));
+      }
+    } else {
+      // For other filters, set to null if empty, otherwise set value
+      setFilters(prev => ({ ...prev, [name]: value === '' ? null : value }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -69,6 +102,7 @@ const TechnologyManagement = () => {
       fetchTechnologies();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to save technology');
+      console.error('Save technology error:', error);
     }
   };
 
@@ -92,6 +126,7 @@ const TechnologyManagement = () => {
       fetchTechnologies();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to delete technology');
+      console.error('Delete technology error:', error);
     }
   };
 
@@ -140,6 +175,7 @@ const TechnologyManagement = () => {
       fetchTechnologies();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update criteria');
+      console.error('Save criteria error:', error);
     }
   };
 
@@ -179,20 +215,24 @@ const TechnologyManagement = () => {
         <div className="filters-section">
           <div className="filter-group">
             <label>Category:</label>
-            <select name="category" value={filters.category} onChange={handleFilterChange}>
+            <select name="category" value={filters.category || ''} onChange={handleFilterChange}>
               <option value="">All Categories</option>
               {TECHNOLOGY_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
             </select>
           </div>
           <div className="filter-group">
             <label>Active:</label>
-            <select name="isActive" value={filters.isActive} onChange={handleFilterChange}>
+            <select 
+              name="isActive" 
+              value={filters.isActive === null ? '' : filters.isActive === true ? 'true' : 'false'} 
+              onChange={handleFilterChange}
+            >
               <option value="">All</option>
               <option value="true">Active</option>
               <option value="false">Inactive</option>
             </select>
           </div>
-          <button className="btn btn-secondary" onClick={() => setFilters({ category: '', isActive: '' })}>
+          <button className="btn btn-secondary" onClick={() => setFilters({ category: null, isActive: null })}>
             Clear Filters
           </button>
         </div>

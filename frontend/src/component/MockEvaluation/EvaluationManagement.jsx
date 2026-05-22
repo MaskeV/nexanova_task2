@@ -1,4 +1,4 @@
-// frontend/src/component/MockEvaluation/EvaluationManagement.jsx
+// frontend/src/component/MockEvaluation/EvaluationManagement.jsx - FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import {
@@ -116,26 +116,77 @@ const EvaluationManagement = () => {
     }));
   };
 
+  /**
+   * ✅ FIXED: Corrected field names and API structure
+   * - technologyId → technology
+   * - roundNumber → round
+   * - Creates individual evaluations for each participant (not batch)
+   * - Proper validation before submission
+   */
   const handleAssignSubmit = async (e) => {
     e.preventDefault();
-    if (!assignForm.participantIds.length) { 
-      toast.warning('Select at least one participant'); 
-      return; 
+
+    // Step 1: Validate all required fields
+    if (!assignForm.batchId) {
+      toast.warning('Please select a batch');
+      return;
+    }
+    if (!assignForm.roundNumber || assignForm.roundNumber < 1) {
+      toast.warning('Please select a valid round');
+      return;
     }
     if (!assignForm.evaluatorId) {
       toast.warning('Please select an evaluator');
       return;
     }
+    if (!assignForm.participantIds || assignForm.participantIds.length === 0) {
+      toast.warning('Please select at least one participant');
+      return;
+    }
+
     try {
-      await assignEvaluation(assignForm);
-      toast.success('Evaluation(s) assigned successfully!');
+      // Step 2: Create evaluation for EACH participant
+      // The backend expects ONE evaluation per API call (one participant per call)
+      const evaluationPromises = assignForm.participantIds.map(participantId => {
+        const payload = {
+          batchId: assignForm.batchId,              // Batch ID string (e.g., "BATCH001")
+          participantId: participantId,             // Single participant ObjectId
+          evaluatorId: assignForm.evaluatorId,      // Evaluator user ObjectId
+          round: assignForm.roundNumber,            // Round number ← KEY NAME FIXED (was roundNumber)
+          technology: assignForm.technologyId       // Tech ID string ← KEY NAME FIXED (was technologyId)
+        };
+
+        console.log('📤 Submitting evaluation for participant:', payload.participantId, payload);
+        return assignEvaluation(payload);
+      });
+
+      // Step 3: Wait for all evaluations to be created
+      await Promise.all(evaluationPromises);
+
+      toast.success(
+        `✅ Successfully assigned ${assignForm.participantIds.length} evaluation(s)!`
+      );
+      
+      // Step 4: Reset and refresh
       setShowAssignModal(false);
       resetAssignForm();
       fetchEvaluations();
     } catch (error) {
-      console.error('Assign evaluation error:', error);
-      toast.error(error.response?.data?.message || 'Failed to assign evaluation');
+      console.error('❌ Assign evaluation error:', error.response?.data || error);
+      const errorMsg = error.response?.data?.message || 
+                       'Failed to assign evaluation. Please ensure all fields are valid.';
+      toast.error(errorMsg);
     }
+  };
+
+  // Check if form can be submitted (all required fields filled)
+  const canSubmit = () => {
+    return (
+      assignForm.batchId &&
+      assignForm.roundNumber &&
+      assignForm.evaluatorId &&
+      assignForm.participantIds.length > 0
+    );
   };
 
   const handleDelete = async (id) => {
@@ -282,7 +333,7 @@ const EvaluationManagement = () => {
           )}
         </div>
 
-        {/* Assign Modal */}
+        {/* Assign Modal - FIXED */}
         {showAssignModal && (
           <div className="modal-overlay" onClick={() => setShowAssignModal(false)}>
             <div className="modal-content modal-large" onClick={e => e.stopPropagation()}>
@@ -290,6 +341,26 @@ const EvaluationManagement = () => {
                 <h2>Assign Evaluation</h2>
                 <button className="btn-close" onClick={() => setShowAssignModal(false)}>✕</button>
               </div>
+
+              {/* Validation Message */}
+              {!canSubmit() && (
+                <div style={{
+                  background: '#fee2e2',
+                  border: '1px solid #fca5a5',
+                  color: '#991b1b',
+                  padding: '12px 16px',
+                  margin: '0 24px 16px',
+                  borderRadius: '8px',
+                  fontSize: '0.875rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <span>⚠️</span>
+                  <span>Please fill in all required fields: Batch, Round, Evaluator, and at least one Participant</span>
+                </div>
+              )}
+
               <form onSubmit={handleAssignSubmit}>
                 <div className="form-row">
                   <div className="form-group">
@@ -335,7 +406,7 @@ const EvaluationManagement = () => {
                             checked={assignForm.participantIds.includes(p._id)} 
                             onChange={() => toggleParticipant(p._id)} 
                           />
-                          {p.username} ({p.email})
+                          {p.username || p.name} ({p.email})
                         </label>
                       ))}
                     </div>
@@ -348,7 +419,14 @@ const EvaluationManagement = () => {
                 </div>
                 <div className="modal-actions">
                   <button type="button" className="btn btn-secondary" onClick={() => setShowAssignModal(false)}>Cancel</button>
-                  <button type="submit" className="btn btn-primary">Assign Evaluation</button>
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary"
+                    disabled={!canSubmit()}
+                    title={!canSubmit() ? 'Fill in all required fields first' : ''}
+                  >
+                    Assign Evaluation
+                  </button>
                 </div>
               </form>
             </div>
