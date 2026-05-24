@@ -105,19 +105,14 @@ evaluationSchema.methods.calculateTotalScore = function() {
   return this.totalScore;
 };
 
-// Pre-save hook to calculate total score
-evaluationSchema.pre('save', function(next) {
+// ✅ FIXED: No `next` parameter — Mongoose handles promise automatically
+evaluationSchema.pre('save', function() {
   if (this.isModified('scores')) {
     this.calculateTotalScore();
   }
-  
-  // Set completed date when status changes to completed
   if (this.isModified('status') && this.status === 'completed' && !this.completedDate) {
     this.completedDate = new Date();
   }
-  
-  next();
 });
 
-// ✅ CORRECT - Only export the model, nothing else
 module.exports = mongoose.model('Evaluation', evaluationSchema);

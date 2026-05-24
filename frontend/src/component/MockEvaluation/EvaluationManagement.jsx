@@ -1,4 +1,4 @@
-// frontend/src/component/MockEvaluation/EvaluationManagement.jsx - FULLY FIXED
+// frontend/src/component/MockEvaluation/EvaluationManagement.jsx
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import {
@@ -23,10 +23,10 @@ const EvaluationManagement = () => {
   const [filters, setFilters] = useState({ batch: null, technology: null, status: null, round: null });
 
   const [assignForm, setAssignForm] = useState({
-    batchId: '', 
-    technologyId: '', 
-    roundNumber: 1, 
-    evaluatorId: '', 
+    batchId: '',
+    technologyId: '',
+    roundNumber: 1,
+    evaluatorId: '',
     participantIds: [],
   });
   const [selectedBatchParticipants, setSelectedBatchParticipants] = useState([]);
@@ -58,9 +58,9 @@ const EvaluationManagement = () => {
     try {
       const response = await authAPI.getAllUsers();
       if (response.data.success) {
-        // Filter only evaluators and admins (both can evaluate)
+        // ✅ FIXED: Only show users with 'evaluator' role — admins should not be evaluators
         const evaluatorUsers = response.data.data.filter(
-          user => user.role === 'evaluator' || user.role === 'admin'
+          user => user.role === 'evaluator'
         );
         setEvaluators(evaluatorUsers);
         console.log('✅ Evaluators loaded:', evaluatorUsers.length);
@@ -95,21 +95,20 @@ const EvaluationManagement = () => {
 
   const handleAssignFormChange = (e) => {
     const { name, value } = e.target;
-    
+
     if (name === 'batchId') {
-      // When batch changes, load its participants and technology
       const batch = batches.find(b => b.batchId === value);
       setSelectedBatchParticipants(batch?.participants || []);
-      
+
       const tech = technologies.find(t => t.technologyId === batch?.technology);
       setSelectedBatchRounds(tech?.rounds || 1);
-      
-      setAssignForm(prev => ({ 
-        ...prev, 
-        batchId: value, 
-        technologyId: batch?.technology || '', 
-        participantIds: [], 
-        roundNumber: 1 
+
+      setAssignForm(prev => ({
+        ...prev,
+        batchId: value,
+        technologyId: batch?.technology || '',
+        participantIds: [],
+        roundNumber: 1
       }));
     } else {
       setAssignForm(prev => ({ ...prev, [name]: value }));
@@ -125,102 +124,47 @@ const EvaluationManagement = () => {
     }));
   };
 
-  /**
-   * ✅ FIXED: Correct API payload structure
-   * Backend expects:
-   * - batchId: string (e.g., "BATCH001")
-   * - participantIds: array of ObjectIds
-   * - evaluatorId: ObjectId
-   * - round: number
-   * - technology: string (e.g., "TECH001")
-   */
   const handleAssignSubmit = async (e) => {
     e.preventDefault();
 
-    // Step 1: Validate all required fields
-    if (!assignForm.batchId) {
-      toast.warning('Please select a batch');
-      return;
-    }
-    if (!assignForm.roundNumber || assignForm.roundNumber < 1) {
-      toast.warning('Please select a valid round');
-      return;
-    }
-    if (!assignForm.evaluatorId) {
-      toast.warning('Please select an evaluator');
-      return;
-    }
-    if (!assignForm.participantIds || assignForm.participantIds.length === 0) {
-      toast.warning('Please select at least one participant');
-      return;
-    }
-    if (!assignForm.technologyId) {
-      toast.warning('Technology is required (should be auto-selected from batch)');
-      return;
-    }
+    if (!assignForm.batchId) { toast.warning('Please select a batch'); return; }
+    if (!assignForm.roundNumber || assignForm.roundNumber < 1) { toast.warning('Please select a valid round'); return; }
+    if (!assignForm.evaluatorId) { toast.warning('Please select an evaluator'); return; }
+    if (!assignForm.participantIds || assignForm.participantIds.length === 0) { toast.warning('Please select at least one participant'); return; }
+    if (!assignForm.technologyId) { toast.warning('Technology is required (should be auto-selected from batch)'); return; }
 
     try {
-      // ✅ FIX: Send correct payload structure - backend handles multiple participants
       const payload = {
-        batchId: assignForm.batchId,              // Batch ID string (e.g., "BATCH001")
-        participantIds: assignForm.participantIds, // ✅ ARRAY of participant ObjectIds
-        evaluatorId: assignForm.evaluatorId,      // Evaluator user ObjectId
-        round: parseInt(assignForm.roundNumber),  // ✅ Ensure it's a number
-        technology: assignForm.technologyId       // Tech ID string (e.g., "TECH001")
+        batchId: assignForm.batchId,
+        participantIds: assignForm.participantIds,
+        evaluatorId: assignForm.evaluatorId,
+        round: parseInt(assignForm.roundNumber),
+        technology: assignForm.technologyId
       };
 
       console.log('📤 Submitting evaluation assignment:', payload);
-      
-      // ✅ Single API call - backend creates evaluation for each participant
       const response = await assignEvaluation(payload);
-
       console.log('✅ Assignment response:', response);
 
-      // Show success message with details
       if (response.results) {
         const { created, skipped, errors } = response.results;
-        
-        if (created.length > 0) {
-          toast.success(
-            `✅ Successfully assigned ${created.length} evaluation(s)!`
-          );
-        }
-        
-        if (skipped.length > 0) {
-          toast.info(
-            `ℹ️ ${skipped.length} evaluation(s) already assigned`
-          );
-        }
-        
-        if (errors.length > 0) {
-          toast.error(
-            `⚠️ ${errors.length} evaluation(s) failed to assign`
-          );
-        }
+        if (created.length > 0) toast.success(`✅ Successfully assigned ${created.length} evaluation(s)!`);
+        if (skipped.length > 0) toast.info(`ℹ️ ${skipped.length} evaluation(s) already assigned`);
+        if (errors.length > 0) toast.error(`⚠️ ${errors.length} evaluation(s) failed to assign`);
       } else {
-        toast.success(
-          `✅ Successfully assigned ${assignForm.participantIds.length} evaluation(s)!`
-        );
+        toast.success(`✅ Successfully assigned ${assignForm.participantIds.length} evaluation(s)!`);
       }
-      
-      // Step 2: Reset and refresh
+
       setShowAssignModal(false);
       resetAssignForm();
       fetchEvaluations();
     } catch (error) {
       console.error('❌ Assign evaluation error:', error.response?.data || error);
-      const errorMsg = error.response?.data?.message || 
-                       'Failed to assign evaluation. Please ensure all fields are valid.';
+      const errorMsg = error.response?.data?.message || 'Failed to assign evaluation. Please ensure all fields are valid.';
       toast.error(errorMsg);
-      
-      // Show validation errors if available
-      if (error.response?.data?.errors) {
-        console.error('Validation errors:', error.response.data.errors);
-      }
     }
   };
 
-  // Check if form can be submitted (all required fields filled)
   const canSubmit = () => {
     return (
       assignForm.batchId &&
@@ -244,21 +188,15 @@ const EvaluationManagement = () => {
   };
 
   const resetAssignForm = () => {
-    setAssignForm({ 
-      batchId: '', 
-      technologyId: '', 
-      roundNumber: 1, 
-      evaluatorId: '', 
-      participantIds: [] 
-    });
+    setAssignForm({ batchId: '', technologyId: '', roundNumber: 1, evaluatorId: '', participantIds: [] });
     setSelectedBatchParticipants([]);
     setSelectedBatchRounds(1);
   };
 
   const getStatusBadgeClass = (status) => ({
-    pending: 'badge-warning', 
-    'in-progress': 'badge-info', 
-    completed: 'badge-success', 
+    pending: 'badge-warning',
+    'in-progress': 'badge-info',
+    completed: 'badge-success',
     cancelled: 'badge-danger',
   }[status] || 'badge-secondary');
 
@@ -377,7 +315,7 @@ const EvaluationManagement = () => {
           )}
         </div>
 
-        {/* Assign Modal - FULLY FIXED */}
+        {/* Assign Modal */}
         {showAssignModal && (
           <div className="modal-overlay" onClick={() => setShowAssignModal(false)}>
             <div className="modal-content modal-large" onClick={e => e.stopPropagation()}>
@@ -386,24 +324,14 @@ const EvaluationManagement = () => {
                 <button className="btn-close" onClick={() => setShowAssignModal(false)}>✕</button>
               </div>
 
-              {/* Validation Message */}
               {!canSubmit() && (
                 <div style={{
-                  background: '#fee2e2',
-                  border: '1px solid #fca5a5',
-                  color: '#991b1b',
-                  padding: '12px 16px',
-                  margin: '0 24px 16px',
-                  borderRadius: '8px',
-                  fontSize: '0.875rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
+                  background: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b',
+                  padding: '12px 16px', margin: '0 24px 16px', borderRadius: '8px',
+                  fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '8px'
                 }}>
                   <span>⚠️</span>
-                  <span>
-                    Batch ID, participant IDs (array), evaluator ID, round, and technology are required
-                  </span>
+                  <span>Batch ID, participant IDs (array), evaluator ID, round, and technology are required</span>
                 </div>
               )}
 
@@ -422,10 +350,10 @@ const EvaluationManagement = () => {
                   </div>
                   <div className="form-group">
                     <label>Round *</label>
-                    <select 
-                      name="roundNumber" 
-                      value={assignForm.roundNumber} 
-                      onChange={handleAssignFormChange} 
+                    <select
+                      name="roundNumber"
+                      value={assignForm.roundNumber}
+                      onChange={handleAssignFormChange}
                       required
                       disabled={!assignForm.batchId}
                     >
@@ -438,13 +366,8 @@ const EvaluationManagement = () => {
 
                 {assignForm.batchId && assignForm.technologyId && (
                   <div style={{
-                    background: '#eff6ff',
-                    border: '1px solid #bfdbfe',
-                    color: '#1e40af',
-                    padding: '10px 14px',
-                    margin: '0 0 16px',
-                    borderRadius: '6px',
-                    fontSize: '0.8rem'
+                    background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af',
+                    padding: '10px 14px', margin: '0 0 16px', borderRadius: '6px', fontSize: '0.8rem'
                   }}>
                     Technology: <strong>{technologies.find(t => t.technologyId === assignForm.technologyId)?.name}</strong>
                   </div>
@@ -456,12 +379,12 @@ const EvaluationManagement = () => {
                     <option value="">Select Evaluator</option>
                     {evaluators.map(ev => (
                       <option key={ev._id} value={ev._id}>
-                        {ev.name} ({ev.email}) - {ev.role}
+                        {ev.name} ({ev.email})
                       </option>
                     ))}
                   </select>
                   {evaluators.length === 0 && (
-                    <p className="hint-text">No evaluators found. Register users with the "evaluator" or "admin" role first.</p>
+                    <p className="hint-text">No evaluators found. Register users with the "evaluator" role first.</p>
                   )}
                 </div>
 
@@ -469,16 +392,16 @@ const EvaluationManagement = () => {
                   <label>Select Participants *</label>
                   {selectedBatchParticipants.length === 0 ? (
                     <p className="hint-text">
-                      {assignForm.batchId ? 'No participants in this batch yet. Add participants to the batch first.' : 'Select a batch first to see participants.'}
+                      {assignForm.batchId ? 'No participants in this batch yet.' : 'Select a batch first to see participants.'}
                     </p>
                   ) : (
                     <div className="students-list">
                       {selectedBatchParticipants.map(p => (
                         <label key={p._id} className="student-checkbox">
-                          <input 
-                            type="checkbox" 
-                            checked={assignForm.participantIds.includes(p._id)} 
-                            onChange={() => toggleParticipant(p._id)} 
+                          <input
+                            type="checkbox"
+                            checked={assignForm.participantIds.includes(p._id)}
+                            onChange={() => toggleParticipant(p._id)}
                           />
                           {p.name || p.username} ({p.email})
                         </label>
@@ -496,11 +419,10 @@ const EvaluationManagement = () => {
                   <button type="button" className="btn btn-secondary" onClick={() => setShowAssignModal(false)}>
                     Cancel
                   </button>
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     className="btn btn-primary"
                     disabled={!canSubmit()}
-                    title={!canSubmit() ? 'Fill in all required fields first' : 'Assign evaluation to selected participants'}
                   >
                     Assign Evaluation{assignForm.participantIds.length > 1 ? 's' : ''}
                   </button>
