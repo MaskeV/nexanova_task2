@@ -3,11 +3,8 @@ const Evaluation = require('../models/Evaluation');
 const Batch = require('../models/Batch');
 const Technology = require('../models/Technology');
 const User = require('../models/User');
-const Participant = require('../models/Participant')
+const Participant = require('../models/Participant');
 
-// @desc    Create evaluation assignment (Admin assigns evaluator to participant for specific round)
-// @route   POST /api/evaluations/assign
-// @access  Admin
 // @desc    Create evaluation assignment (Admin assigns evaluator to participant for specific round)
 // @route   POST /api/evaluations/assign
 // @access  Admin
@@ -67,7 +64,7 @@ const assignEvaluation = async (req, res) => {
     
     for (const participantId of participantIds) {
       try {
-        // Verify participant exists and is in the batch
+        // Verify participant exists
         const participant = await Participant.findById(participantId);
         if (!participant) {
           results.errors.push({
@@ -77,7 +74,9 @@ const assignEvaluation = async (req, res) => {
           continue;
         }
         
-        if (!batch.participants.includes(participantId)) {
+        // ✅ FIXED: Use .equals() for ObjectId comparison
+        const isInBatch = batch.participants.some(p => p.equals(participantId));
+        if (!isInBatch) {
           results.errors.push({
             participantId,
             message: 'Participant is not in this batch'
@@ -177,8 +176,8 @@ const getMyEvaluations = async (req, res) => {
     if (status) filter.status = status;
     
     const evaluations = await Evaluation.find(filter)
-      .populate('participant', 'username email')
-      .populate('evaluator', 'username email')
+      .populate('participant', 'name email')
+      .populate('evaluator', 'name email')
       .sort({ assignedDate: -1 });
     
     // Get batch and technology details
@@ -306,8 +305,8 @@ const getEvaluationById = async (req, res) => {
     const { id } = req.params;
     
     const evaluation = await Evaluation.findById(id)
-      .populate('participant', 'username email')
-      .populate('evaluator', 'username email');
+      .populate('participant', 'name email')
+      .populate('evaluator', 'name email');
     
     if (!evaluation) {
       return res.status(404).json({
@@ -370,8 +369,8 @@ const getAllEvaluations = async (req, res) => {
     if (round) filter.round = parseInt(round);
     
     const evaluations = await Evaluation.find(filter)
-      .populate('participant', 'username email')
-      .populate('evaluator', 'username email')
+      .populate('participant', 'name email')
+      .populate('evaluator', 'name email')
       .sort({ assignedDate: -1 });
     
     res.status(200).json({
@@ -401,8 +400,8 @@ const getBatchEvaluations = async (req, res) => {
     if (status) filter.status = status;
     
     const evaluations = await Evaluation.find(filter)
-      .populate('participant', 'username email')
-      .populate('evaluator', 'username email')
+      .populate('participant', 'name email')
+      .populate('evaluator', 'name email')
       .sort({ round: 1, participant: 1 });
     
     // Get batch and technology details
@@ -452,7 +451,7 @@ const getParticipantEvaluations = async (req, res) => {
     }
     
     const evaluations = await Evaluation.find({ participant: participantId })
-      .populate('evaluator', 'username email')
+      .populate('evaluator', 'name email')
       .sort({ round: 1, assignedDate: -1 });
     
     // Get batch and technology details for each evaluation

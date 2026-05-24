@@ -12,26 +12,26 @@ const {
 } = require('../controllers/EvaluationController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
 
-// Logging middleware — next() was missing, causing all requests to hang
+// Logging middleware
 router.use((req, res, next) => {
   console.log(`📝 Evaluation Route: ${req.method} ${req.path}`);
-    next();
+  next();
 });
 
 // All routes require authentication
 router.use(protect);
 
-// Evaluator routes
+// ✅ SPECIFIC routes FIRST (before :id)
+router.post('/assign', authorize('admin'), assignEvaluation);
 router.get('/my-evaluations', getMyEvaluations);
+router.get('/batch/:batchId', authorize('admin'), getBatchEvaluations);
 router.put('/:id/submit', submitEvaluation);
 
 // Admin routes
-router.post('/assign', authorize('admin'), assignEvaluation);
 router.get('/', authorize('admin'), getAllEvaluations);
-router.get('/batch/:batchId', authorize('admin'), getBatchEvaluations);
 router.delete('/:id', authorize('admin'), deleteEvaluation);
 
-// Shared routes (admin, assigned evaluator, or own participant)
+// ✅ GENERIC routes LAST (after specific ones)
 router.get('/participant/:participantId', getParticipantEvaluations);
 router.get('/:id', getEvaluationById);
 
