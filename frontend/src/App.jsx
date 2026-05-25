@@ -12,12 +12,15 @@ import Dashboard from './component/dashboard/Dashboard';
 import UserManagement from './component/admin/UserManagement';
 import ChangePassword from './component/auth/ChangePassword';
 
+
+
 // MockEvaluation modules
 import BatchManagement from './component/MockEvaluation/BatchManagement';
 import TechnologyManagement from './component/MockEvaluation/TechnologyManagement';
 import EvaluationManagement from './component/MockEvaluation/EvaluationManagement';
 import EvaluatorDashboard from './component/MockEvaluation/EvaluatorDashboard';
 import ReportsDashboard from './component/MockEvaluation/ReportsDashboard';
+import ParticipantManagement from './component/MockEvaluation/ParticipantManagement';
 
 // ── Console Logger ────────────────────────────────────────
 const consoleLog = (message, data = null) => {
@@ -111,6 +114,7 @@ const AppRoutes = () => {
       <Route path="/technologies"    element={<AdminRoute><TechnologyManagement /></AdminRoute>} />
       <Route path="/evaluations"     element={<AdminRoute><EvaluationManagement /></AdminRoute>} />
       <Route path="/reports"         element={<AdminRoute><ReportsDashboard /></AdminRoute>} />
+      <Route prth="/participants"    element={<AdminRoute><ParticipantManagement/></AdminRoute>}/>
 
       {/* Catch-all */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
